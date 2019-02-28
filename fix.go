@@ -26,9 +26,9 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/charlievieth/imports/gopathwalk"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/internal/gopathwalk"
 )
 
 // Debug controls verbose logging.
@@ -542,6 +542,9 @@ func (e *fixEnv) env() []string {
 	return env
 }
 
+var invokeModOnce sync.Once
+var invokeModEnabled bool
+
 func (e *fixEnv) getResolver() resolver {
 	if e.resolver != nil {
 		return e.resolver
@@ -550,8 +553,11 @@ func (e *fixEnv) getResolver() resolver {
 		return &goPackagesResolver{env: e}
 	}
 
-	out, err := e.invokeGo("env", "GOMOD")
-	if err != nil || len(bytes.TrimSpace(out.Bytes())) == 0 {
+	invokeModOnce.Do(func() {
+		out, err := e.invokeGo("env", "GOMOD")
+		invokeModEnabled = err == nil && len(bytes.TrimSpace(out.Bytes())) != 0
+	})
+	if !invokeModEnabled {
 		return &gopathResolver{env: e}
 	}
 	return &moduleResolver{env: e}
@@ -907,28 +913,38 @@ func distance(basepath, targetpath string) int {
 	return strings.Count(p, string(filepath.Separator)) + 1
 }
 
+var gopathScanOnce sync.Once
+var gopathScanResult []*pkg
+
 func (r *gopathResolver) scan(_ references) ([]*pkg, error) {
-	dupCheck := make(map[string]bool)
-	var result []*pkg
+	gopathScanOnce.Do(func() {
+		dupCheck := make(map[string]bool)
+		var result []*pkg
 
-	var mu sync.Mutex
+		var mu sync.Mutex
 
-	add := func(root gopathwalk.Root, dir string) {
-		mu.Lock()
-		defer mu.Unlock()
+		add := func(root gopathwalk.Root, dir string) {
+			mu.Lock()
+			defer mu.Unlock()
 
-		if _, dup := dupCheck[dir]; dup {
-			return
+			if _, dup := dupCheck[dir]; dup {
+				return
+			}
+			dupCheck[dir] = true
+			importpath := filepath.ToSlash(dir[len(root.Path)+len("/"):])
+			result = append(result, &pkg{
+				importPathShort: VendorlessPath(importpath),
+				dir:             dir,
+			})
 		}
-		dupCheck[dir] = true
-		importpath := filepath.ToSlash(dir[len(root.Path)+len("/"):])
-		result = append(result, &pkg{
-			importPathShort: VendorlessPath(importpath),
-			dir:             dir,
-		})
-	}
-	gopathwalk.Walk(gopathwalk.SrcDirsRoots(r.env.buildContext()), add, gopathwalk.Options{Debug: Debug, ModulesEnabled: false})
-	return result, nil
+		gopathwalk.Walk(
+			gopathwalk.SrcDirsRoots(r.env.buildContext()),
+			add,
+			gopathwalk.Options{Debug: Debug, ModulesEnabled: false},
+		)
+		gopathScanResult = result
+	})
+	return gopathScanResult, nil
 }
 
 // VendorlessPath returns the devendorized version of the import path ipath.
