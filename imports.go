@@ -36,7 +36,8 @@ type Options struct {
 	TabIndent bool // Use tabs for indent (true if nil *Options provided)
 	TabWidth  int  // Tab width (8 if nil *Options provided)
 
-	FormatOnly bool // Disable the insertion and deletion of imports
+	FormatOnly  bool // Disable the insertion and deletion of imports
+	SimplifyAST bool // simplify code
 }
 
 // Process formats and adjusts imports for the provided file.
@@ -92,6 +93,9 @@ func process(filename string, src []byte, opt *Options, env *fixEnv) ([]byte, er
 			lastGroup = groupNum
 		}
 
+	}
+	if opt.SimplifyAST {
+		simplify(file)
 	}
 
 	printerMode := printer.UseSpaces
