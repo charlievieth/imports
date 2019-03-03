@@ -32,12 +32,12 @@ import (
 )
 
 // Debug controls verbose logging.
-var Debug = false
+const Debug = false
 
 // LocalPrefix is a comma-separated string of import path prefixes, which, if
 // set, instructs Process to sort the import paths with the given prefixes
 // into another group after 3rd-party packages.
-var LocalPrefix string
+const LocalPrefix = ""
 
 func localPrefixes() []string {
 	if LocalPrefix != "" {
