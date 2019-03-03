@@ -95,7 +95,7 @@ func process(filename string, src []byte, opt *Options, env *fixEnv) ([]byte, er
 
 	}
 	if opt.SimplifyAST {
-		simplify(file)
+		Simplify(file)
 	}
 
 	printerMode := printer.UseSpaces

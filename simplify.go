@@ -132,7 +132,7 @@ func isBlank(x ast.Expr) bool {
 	return ok && ident.Name == "_"
 }
 
-func simplify(f *ast.File) {
+func Simplify(f *ast.File) {
 	// remove empty declarations such as "const ()", etc
 	removeEmptyDeclGroups(f)
 
