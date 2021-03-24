@@ -877,6 +877,7 @@ func (e *ProcessEnv) init() error {
 	}
 
 	goEnv := map[string]string{}
+	// TODO (CEV): see if we need to cache the results of this
 	stdout, err := e.invokeGo(context.TODO(), "env", append([]string{"-json"}, RequiredGoEnvVars...)...)
 	if err != nil {
 		return err
@@ -1239,6 +1240,7 @@ func packageDirToName(dir string) (packageName string, err error) {
 		fullFile := filepath.Join(dir, name)
 
 		fset := token.NewFileSet()
+		// TODO: replace with buildutil
 		f, err := parser.ParseFile(fset, fullFile, nil, parser.PackageClauseOnly)
 		if err != nil {
 			lastErr = err
