@@ -959,7 +959,7 @@ func BenchmarkScanModCache(b *testing.B) {
 	testenv.NeedsGo1Point(b, 11)
 	env := &ProcessEnv{
 		GocmdRunner: &gocommand.Runner{},
-		Logf:        log.Printf,
+		Logf:        nil,
 	}
 	exclude := []gopathwalk.RootType{gopathwalk.RootGOROOT}
 	resolver, err := env.GetResolver()
