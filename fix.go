@@ -1748,7 +1748,7 @@ func projectDir(dir string) string {
 	for {
 		for _, s := range projectTombstones {
 			p := dir + string(filepath.Separator) + s
-			if fi, err := os.Lstat(p); err == nil && fi.Mode().IsRegular() {
+			if _, err := os.Lstat(p); err == nil {
 				return dir
 			}
 		}
