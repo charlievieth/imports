@@ -42,6 +42,8 @@ type Options struct {
 	TabWidth  int  // Tab width (8 if nil *Options provided)
 
 	FormatOnly bool // Disable the insertion and deletion of imports
+
+	SimplifyAST bool // simplify code
 }
 
 // Process implements golang.org/x/tools/imports.Process with explicit context in opt.Env.
@@ -123,6 +125,10 @@ func formatFile(fileSet *token.FileSet, file *ast.File, src []byte, adjust func(
 			lastGroup = groupNum
 		}
 
+	}
+
+	if opt.SimplifyAST {
+		Simplify(file)
 	}
 
 	printerMode := printer.UseSpaces
