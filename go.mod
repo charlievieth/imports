@@ -1,9 +1,9 @@
 module github.com/charlievieth/imports
 
-go 1.15
+go 1.16
 
 require (
-	golang.org/x/mod v0.4.1
-	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c
-	golang.org/x/tools v0.1.1-0.20210322191307-d8aeb16bb5b3
+	golang.org/x/mod v0.5.0
+	golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e
+	golang.org/x/tools v0.1.5
 )
