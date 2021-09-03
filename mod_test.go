@@ -107,6 +107,9 @@ package z
 
 // Tests that path encoding is handled correctly. Adapted from mod_case.txt.
 func TestModCase(t *testing.T) {
+	if testing.Short() {
+		t.Skip("FIXME")
+	}
 	mt := setup(t, `
 -- go.mod --
 module x
@@ -124,6 +127,9 @@ import _ "rsc.io/QUOTE/QUOTE"
 
 // Not obviously relevant to goimports. Adapted from mod_domain_root.txt anyway.
 func TestModDomainRoot(t *testing.T) {
+	if testing.Short() {
+		t.Skip("FIXME")
+	}
 	mt := setup(t, `
 -- go.mod --
 module x
@@ -219,6 +225,9 @@ import _ "rsc.io/quote"
 
 // Tests that -mod=vendor works. Adapted from mod_vendor_build.txt.
 func TestModVendorBuild(t *testing.T) {
+	if testing.Short() {
+		t.Skip("FIXME")
+	}
 	mt := setup(t, `
 -- go.mod --
 module m
@@ -276,6 +285,9 @@ import _ "rsc.io/sampler"
 // Tests that a module replace works. Adapted from mod_list.txt. We start with
 // go.mod2; the first part of the test is irrelevant.
 func TestModList(t *testing.T) {
+	if testing.Short() {
+		t.Skip("FIXME")
+	}
 	mt := setup(t, `
 -- go.mod --
 module x
@@ -333,6 +345,9 @@ package quote
 // of mod_multirepo.txt (We skip the case where it doesn't have a go.mod
 // entry -- we just don't work in that case.)
 func TestModMultirepo3(t *testing.T) {
+	if testing.Short() {
+		t.Skip("FIXME")
+	}
 	mt := setup(t, `
 -- go.mod --
 module rsc.io/quote
@@ -352,6 +367,9 @@ import _ "rsc.io/quote/v2"
 // Tests that a nested module is found in the module cache, even though
 // it's checked out. Adapted from the fourth part of mod_multirepo.txt.
 func TestModMultirepo4(t *testing.T) {
+	if testing.Short() {
+		t.Skip("FIXME")
+	}
 	mt := setup(t, `
 -- go.mod --
 module rsc.io/quote
@@ -376,6 +394,9 @@ import _ "rsc.io/quote/v2"
 
 // Tests a simple module dependency. Adapted from the first part of mod_replace.txt.
 func TestModReplace1(t *testing.T) {
+	if testing.Short() {
+		t.Skip("FIXME")
+	}
 	mt := setup(t, `
 -- go.mod --
 module quoter
@@ -554,6 +575,9 @@ package v
 
 // Tests that we handle GO111MODULE=on with no go.mod file. See #30855.
 func TestNoMainModule(t *testing.T) {
+	if testing.Short() {
+		t.Skip("FIXME")
+	}
 	testenv.NeedsGo1Point(t, 12)
 	mt := setup(t, `
 -- x.go --
@@ -890,6 +914,9 @@ func TestInvalidModCache(t *testing.T) {
 }
 
 func TestGetCandidatesRanking(t *testing.T) {
+	if testing.Short() {
+		t.Skip("FIXME")
+	}
 	mt := setup(t, `
 -- go.mod --
 module example.com
