@@ -6,11 +6,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -24,16 +22,6 @@ var projectTombstonesUncommon = [...]string{
 	"Gopkg.toml",
 	".svn",
 	".hg",
-}
-
-func fileExists(name string) bool {
-	if runtime.GOOS != "windows" {
-		var stat syscall.Stat_t
-		return syscall.Lstat(name, &stat) == nil
-	} else {
-		_, err := os.Lstat(name)
-		return err == nil
-	}
 }
 
 func projectDir(dir string) string {
