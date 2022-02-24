@@ -940,7 +940,9 @@ func (e *ProcessEnv) buildContext() (*build.Context, error) {
 	// HACK: setting any of the Context I/O hooks prevents Import from invoking
 	// 'go list', regardless of GO111MODULE. This is undocumented, but it's
 	// unlikely to change before GOPATH support is removed.
-	ctx.ReadDir = ioutil.ReadDir
+	//
+	// WARN: using our own faster version of ioutil.ReadDir here
+	ctx.ReadDir = readDir
 
 	return &ctx, nil
 }
