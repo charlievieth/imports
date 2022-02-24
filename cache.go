@@ -111,16 +111,18 @@ func (e *goEnvCacheEntry) shouldInvalidate() bool {
 	return d >= time.Minute || (e.err != nil && d >= time.Minute/2)
 }
 
-func (e *goEnvCacheEntry) init(p *ProcessEnv) {
-	var stdout *bytes.Buffer
-	stdout, e.err = p.invokeGo(context.TODO(), "env", append([]string{"-json"}, RequiredGoEnvVars...)...)
-	if e.err != nil {
-		return
-	}
-	env := make(map[string]string, len(RequiredGoEnvVars))
-	if e.err = json.Unmarshal(stdout.Bytes(), &env); e.err == nil {
-		e.env = env
-	}
+func (e *goEnvCacheEntry) lazyInit(p *ProcessEnv) {
+	e.once.Do(func() {
+		var stdout *bytes.Buffer
+		stdout, e.err = p.invokeGo(context.TODO(), "env", append([]string{"-json"}, RequiredGoEnvVars...)...)
+		if e.err != nil {
+			return
+		}
+		env := make(map[string]string, len(RequiredGoEnvVars))
+		if e.err = json.Unmarshal(stdout.Bytes(), &env); e.err == nil {
+			e.env = env
+		}
+	})
 }
 
 var goEnvCache sync.Map
@@ -133,14 +135,19 @@ func invalidateCacheEntry(key goEnvCacheKey) *goEnvCacheEntry {
 
 func (p *ProcessEnv) goCmdEnv(_ context.Context) (map[string]string, error) {
 	key := newGoEnvCacheKey(p)
+	var e *goEnvCacheEntry
 	v, ok := goEnvCache.Load(key)
 	if !ok {
-		v, _ = goEnvCache.LoadOrStore(key, &goEnvCacheEntry{createdAt: time.Now()})
+		e = &goEnvCacheEntry{createdAt: time.Now()}
+		if vv, loaded := goEnvCache.LoadOrStore(key, e); loaded {
+			e = vv.(*goEnvCacheEntry)
+		}
+	} else {
+		e = v.(*goEnvCacheEntry)
 	}
-	e := v.(*goEnvCacheEntry)
+	e.lazyInit(p)
 	if e.shouldInvalidate() {
 		e = invalidateCacheEntry(key)
 	}
-	e.once.Do(func() { e.init(p) })
 	return e.env, e.err
 }
