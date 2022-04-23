@@ -9,6 +9,7 @@ package imports
 import (
 	"go/ast"
 	"go/token"
+	"log"
 	"sort"
 	"strconv"
 )
@@ -50,8 +51,8 @@ func sortImports(localPrefix string, fset *token.FileSet, f *ast.File) {
 		// Deduping can leave a blank line before the rparen; clean that up.
 		if len(d.Specs) > 0 {
 			lastSpec := d.Specs[len(d.Specs)-1]
-			lastLine := fset.Position(lastSpec.Pos()).Line
-			if rParenLine := fset.Position(d.Rparen).Line; rParenLine > lastLine+1 {
+			lastLine := fset.PositionFor(lastSpec.Pos(), false).Line
+			if rParenLine := fset.PositionFor(d.Rparen, false).Line; rParenLine > lastLine+1 {
 				fset.File(d.Rparen).MergeLine(rParenLine - 1)
 			}
 		}
@@ -243,6 +244,11 @@ func sortSpecs(localPrefix string, fset *token.FileSet, f *ast.File, specs []ast
 			if previousLine > 0 && previousLine < fset.File(p).LineCount() {
 				fset.File(p).MergeLine(previousLine)
 				previousLine--
+			} else {
+				// try to gather some data to diagnose how this could happen
+				req := "Please report what the imports section of your go file looked like."
+				log.Printf("panic avoided: first:%d line:%d previous:%d max:%d. %s",
+					firstSpecLine, line, previousLine, fset.File(p).LineCount(), req)
 			}
 		}
 	}
