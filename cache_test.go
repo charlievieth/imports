@@ -35,32 +35,32 @@ func TestProjectDir(t *testing.T) {
 	}
 }
 
-func TestProjectModFile(t *testing.T) {
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	mod := filepath.Join(wd, "go.mod")
-	fi1, err := os.Lstat(mod)
-	if err != nil {
-		t.Fatal(err)
-	}
+// func TestProjectModFile(t *testing.T) {
+// 	wd, err := os.Getwd()
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	mod := filepath.Join(wd, "go.mod")
+// 	fi1, err := os.Lstat(mod)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	got := projectModFile(wd)
-	fi2, err := os.Lstat(got)
-	if err != nil {
-		t.Fatal(err)
-	}
+// 	got := projectModFile(wd)
+// 	fi2, err := os.Lstat(got)
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
 
-	if !os.SameFile(fi1, fi2) {
-		t.Errorf("files not the same: got: %q want: %q", got, mod)
-	}
+// 	if !os.SameFile(fi1, fi2) {
+// 		t.Errorf("files not the same: got: %q want: %q", got, mod)
+// 	}
 
-	tmp := os.TempDir()
-	if s := projectModFile(tmp); s != "" {
-		t.Errorf(`exptected "" when mod file not found got: %q`, s)
-	}
-}
+// 	tmp := os.TempDir()
+// 	if s := projectModFile(tmp); s != "" {
+// 		t.Errorf(`exptected "" when mod file not found got: %q`, s)
+// 	}
+// }
 
 func TestGoCmdEnv(t *testing.T) {
 	wd, err := os.Getwd()

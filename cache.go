@@ -15,6 +15,7 @@ import (
 var projectTombstonesCommon = [...]string{
 	".git",
 	"go.mod",
+	"go.work", // go1.18
 }
 
 var projectTombstonesUncommon = [...]string{
@@ -30,7 +31,7 @@ func projectDir(dir string) string {
 
 	// fast path using comming tombstones
 	for {
-		for _, s := range projectTombstonesCommon {
+		for _, s := range &projectTombstonesCommon {
 			if fileExists(dir + string(filepath.Separator) + s) {
 				return dir
 			}
@@ -45,7 +46,7 @@ func projectDir(dir string) string {
 	// try with more uncommon project tombstones
 	dir = orig
 	for {
-		for _, s := range projectTombstonesUncommon {
+		for _, s := range &projectTombstonesUncommon {
 			if fileExists(dir + string(filepath.Separator) + s) {
 				return dir
 			}
@@ -60,43 +61,46 @@ func projectDir(dir string) string {
 	return orig
 }
 
-// TODO: remove if not used
-//
-// TODO: use this to invalidate cache (check if a mod file was added)
-func projectModFile(dir string) string {
-	dir = projectDir(dir)
-	if dir == "" || dir == "/" {
-		return ""
-	}
-	p := dir + string(filepath.Separator) + "go.mod"
-	if _, err := os.Lstat(p); err == nil {
-		return p
-	}
-	return ""
-}
-
+// TODO: include go.mod file in the cache key
 type goEnvCacheKey struct {
 	WorkDir    string
 	BuildFlags string
 	Env        string
+	// TODO: consider hashing the contents of the mod file
+	// after formatting it
+	ModFile    string
+	ModModTime int64
+	ModSize    int64
 }
 
 func newGoEnvCacheKey(p *ProcessEnv) goEnvCacheKey {
 	env := p.env()
-	if len(env) != 0 {
+	if len(env) > 1 {
 		sort.Strings(env)
 	}
 	var flags []string
-	if n := len(p.BuildFlags); n != 0 {
-		flags = make([]string, n)
+	if len(p.BuildFlags) != 0 {
+		flags = make([]string, len(p.BuildFlags))
 		copy(flags, p.BuildFlags)
-		sort.Strings(flags)
+		if len(flags) > 1 {
+			sort.Strings(flags)
+		}
 	}
-	return goEnvCacheKey{
-		WorkDir:    projectDir(p.WorkingDir),
+	dir := projectDir(p.WorkingDir)
+	key := goEnvCacheKey{
+		WorkDir:    dir,
 		BuildFlags: strings.Join(flags, ","),
 		Env:        strings.Join(env, ","),
 	}
+	for _, name := range []string{"go.mod", "go.work"} {
+		name = dir + string(filepath.Separator) + name
+		if fi, err := os.Stat(name); err == nil && fi.Mode().IsRegular() {
+			key.ModFile = name
+			key.ModModTime = fi.ModTime().UnixNano()
+			key.ModSize = fi.Size()
+		}
+	}
+	return key
 }
 
 type goEnvCacheEntry struct {
@@ -107,8 +111,15 @@ type goEnvCacheEntry struct {
 }
 
 func (e *goEnvCacheEntry) shouldInvalidate() bool {
+	const (
+		// max age of valid cache entries
+		maxAge = time.Minute * 5
+
+		// max age of invalid (error'd) cache entrie
+		errInterval = time.Second * 5
+	)
 	d := time.Since(e.createdAt)
-	return d >= time.Minute || (e.err != nil && d >= time.Minute/2)
+	return d >= maxAge || (e.err != nil && d >= errInterval)
 }
 
 func (e *goEnvCacheEntry) lazyInit(p *ProcessEnv) {
@@ -127,12 +138,6 @@ func (e *goEnvCacheEntry) lazyInit(p *ProcessEnv) {
 
 var goEnvCache sync.Map
 
-func invalidateCacheEntry(key goEnvCacheKey) *goEnvCacheEntry {
-	e := &goEnvCacheEntry{createdAt: time.Now()}
-	goEnvCache.Store(key, e)
-	return e
-}
-
 func (p *ProcessEnv) goCmdEnv(_ context.Context) (map[string]string, error) {
 	key := newGoEnvCacheKey(p)
 	var e *goEnvCacheEntry
@@ -147,7 +152,8 @@ func (p *ProcessEnv) goCmdEnv(_ context.Context) (map[string]string, error) {
 	}
 	e.lazyInit(p)
 	if e.shouldInvalidate() {
-		e = invalidateCacheEntry(key)
+		e = &goEnvCacheEntry{createdAt: time.Now()}
+		goEnvCache.Store(key, e)
 	}
 	return e.env, e.err
 }
