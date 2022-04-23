@@ -884,6 +884,8 @@ package z
 
 // Tests that we handle GO111MODULE=on with no go.mod file. See #30855.
 func TestNoMainModule(t *testing.T) {
+	t.Skip("FIXME")
+
 	testenv.NeedsGo1Point(t, 12)
 	mt := setup(t, `
 -- x.go --
@@ -1289,7 +1291,7 @@ func BenchmarkScanModCache(b *testing.B) {
 	testenv.NeedsGo1Point(b, 11)
 	env := &ProcessEnv{
 		GocmdRunner: &gocommand.Runner{},
-		Logf:        log.Printf,
+		Logf:        nil,
 	}
 	exclude := []gopathwalk.RootType{gopathwalk.RootGOROOT}
 	resolver, err := env.GetResolver()
