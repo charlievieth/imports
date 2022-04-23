@@ -11,6 +11,7 @@ import (
 	"go/build"
 	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -2904,4 +2905,59 @@ var _, _ = fmt.Sprintf, dot.Dot
 		},
 		gopathOnly: true, // our modules testing setup doesn't allow modules without dots.
 	}.processTest(t, "golang.org/fake", "x.go", nil, nil, want)
+}
+
+func BenchmarkLoadPackageNames(b *testing.B) {
+	wd, err := os.Getwd()
+	if err != nil {
+		b.Fatal(err)
+	}
+	env := &ProcessEnv{
+		GocmdRunner: &gocommand.Runner{},
+		WorkingDir:  wd,
+	}
+	resolver := newGopathResolver(env)
+
+	importPaths := []string{
+		"archive/tar",
+		"archive/zip",
+		"bufio",
+		"bytes",
+		"compress/bzip2",
+		"compress/flate",
+		"compress/gzip",
+		"compress/lzw",
+		"compress/zlib",
+		"container/heap",
+		"container/list",
+		"container/ring",
+		"context",
+		"crypto",
+		"crypto/aes",
+		"crypto/cipher",
+		"crypto/des",
+		"crypto/dsa",
+		"crypto/ecdsa",
+		"crypto/ed25519",
+		"crypto/ed25519/internal/edwards25519",
+		"crypto/ed25519/internal/edwards25519/field",
+		"crypto/elliptic",
+		"crypto/elliptic/internal/fiat",
+		"crypto/elliptic/internal/nistec",
+		"crypto/hmac",
+		"crypto/internal/randutil",
+		"crypto/internal/subtle",
+		"crypto/md5",
+		"crypto/rand",
+		"crypto/rc4",
+		"crypto/rsa",
+		"crypto/sha1",
+		"crypto/sha256",
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := resolver.loadPackageNames(importPaths, wd); err != nil {
+			b.Fatal(err)
+		}
+	}
 }

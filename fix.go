@@ -17,6 +17,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -891,7 +892,7 @@ func (e *ProcessEnv) init() error {
 }
 
 func (e *ProcessEnv) env() []string {
-	var env []string // the gocommand package will prepend os.Environ.
+	env := make([]string, 0, len(e.Env)) // the gocommand package will prepend os.Environ.
 	for k, v := range e.Env {
 		env = append(env, k+"="+v)
 	}
@@ -1183,15 +1184,36 @@ func (r *gopathResolver) ClearForNewScan() {
 }
 
 func (r *gopathResolver) loadPackageNames(importPaths []string, srcDir string) (map[string]string, error) {
-	names := map[string]string{}
 	bctx, err := r.env.buildContext()
 	if err != nil {
 		return nil, err
 	}
-	for _, path := range importPaths {
-		names[path] = importPathToName(bctx, path, srcDir)
+
+	// limit concurrency
+	numCPU := runtime.NumCPU()
+	if numCPU < 4 {
+		numCPU = 4
+	} else if numCPU > 32 {
+		numCPU = 32
 	}
-	return names, nil
+	gate := make(chan struct{}, numCPU)
+	var wg sync.WaitGroup
+	names := make([]string, len(importPaths))
+	for i := range importPaths {
+		wg.Add(1)
+		go func(i int) {
+			gate <- struct{}{}
+			defer func() { wg.Done(); <-gate }()
+			names[i] = importPathToName(bctx, importPaths[i], srcDir)
+		}(i)
+	}
+	wg.Wait()
+
+	m := make(map[string]string, len(names))
+	for i := range importPaths {
+		m[importPaths[i]] = names[i]
+	}
+	return m, nil
 }
 
 // importPathToName finds out the actual package name, as declared in its .go files.
