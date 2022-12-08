@@ -1,7 +1,31 @@
-//go:build darwin
-// +build darwin
+// Copyright 2022 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+//go:build darwin && cgo
+// +build darwin,cgo
 
 package fastwalk
+
+/*
+#include <dirent.h>
+
+// fastwalk_readdir_r wraps readdir_r so that we don't have to pass a dirent**
+// result pointer which triggers CGO's "Go pointer to Go pointer" check unless
+// we allocat the result dirent* with malloc.
+//
+// fastwalk_readdir_r returns 0 on success, -1 upon reaching the end of the
+// directory, or a positive error number to indicate failure.
+static int fastwalk_readdir_r(DIR *fd, struct dirent *entry) {
+	struct dirent *result;
+	int ret = readdir_r(fd, entry, &result);
+	if (ret == 0 && result == NULL) {
+		ret = -1; // EOF
+	}
+	return ret;
+}
+*/
+import "C"
 
 import (
 	"os"
@@ -14,20 +38,20 @@ func readDir(dirName string, fn func(dirName, entName string, typ os.FileMode) e
 	if err != nil {
 		return &os.PathError{Op: "opendir", Path: dirName, Err: err}
 	}
-	defer closedir(fd)
+	defer C.closedir(fd)
 
 	skipFiles := false
 	var dirent syscall.Dirent
-	var entptr *syscall.Dirent
 	for {
-		if errno := readdir_r(uintptr(fd), &dirent, &entptr); errno != 0 {
-			if errno == syscall.EINTR {
+		ret := int(C.fastwalk_readdir_r(fd, (*C.struct_dirent)(unsafe.Pointer(&dirent))))
+		if ret != 0 {
+			if ret == -1 {
+				break // EOF
+			}
+			if ret == int(syscall.EINTR) {
 				continue
 			}
-			return &os.PathError{Op: "readdir", Path: dirName, Err: errno}
-		}
-		if entptr == nil { // EOF
-			break
+			return &os.PathError{Op: "readdir", Path: dirName, Err: syscall.Errno(ret)}
 		}
 		if dirent.Ino == 0 {
 			continue
@@ -37,6 +61,7 @@ func readDir(dirName string, fn func(dirName, entName string, typ os.FileMode) e
 			continue
 		}
 		name := (*[len(syscall.Dirent{}.Name)]byte)(unsafe.Pointer(&dirent.Name))[:]
+		name = name[:dirent.Namlen]
 		for i, c := range name {
 			if c == 0 {
 				name = name[:i]
@@ -47,8 +72,7 @@ func readDir(dirName string, fn func(dirName, entName string, typ os.FileMode) e
 		if string(name) == "." || string(name) == ".." {
 			continue
 		}
-		nm := string(name)
-		if err := fn(dirName, nm, typ); err != nil {
+		if err := fn(dirName, string(name), typ); err != nil {
 			if err != ErrSkipFiles {
 				return err
 			}
@@ -79,16 +103,15 @@ func dtToType(typ uint8) os.FileMode {
 	return ^os.FileMode(0)
 }
 
-// According to https://golang.org/doc/go1.14#runtime
-// A consequence of the implementation of preemption is that on Unix systems,
-// including Linux and macOS systems, programs built with Go 1.14 will receive
-// more signals than programs built with earlier releases.
-//
-// This causes opendir to sometimes fail with EINTR errors.
-// We need to retry in this case.
-func openDir(path string) (fd uintptr, err error) {
+// openDir wraps opendir(3) and handles any EINTR errors. The returned *DIR
+// needs to be closed with closedir(3).
+func openDir(path string) (*C.DIR, error) {
+	name, err := syscall.BytePtrFromString(path)
+	if err != nil {
+		return nil, err
+	}
 	for {
-		fd, err := opendir(path)
+		fd, err := C.opendir((*C.char)(unsafe.Pointer(name)))
 		if err != syscall.EINTR {
 			return fd, err
 		}

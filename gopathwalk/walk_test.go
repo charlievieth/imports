@@ -173,3 +173,24 @@ func mapToDir(destDir string, files map[string]string) error {
 	}
 	return nil
 }
+
+// var roots []gopathwalk.Root
+// roots = append(roots, gopathwalk.Root{filepath.Join(goenv["GOROOT"], "src"), gopathwalk.RootGOROOT})
+// for _, p := range filepath.SplitList(goenv["GOPATH"]) {
+// 	roots = append(roots, gopathwalk.Root{filepath.Join(p, "src"), gopathwalk.RootGOPATH})
+// }
+
+func BenchmarkWalk(b *testing.B) {
+	root := Root{
+		Path: filepath.Join(runtime.GOROOT(), "src"),
+		Type: RootGOROOT,
+	}
+	roots := []Root{root}
+	opts := Options{
+		Logf:           nil,
+		ModulesEnabled: false,
+	}
+	for i := 0; i < b.N; i++ {
+		Walk(roots, func(Root, string) {}, opts)
+	}
+}

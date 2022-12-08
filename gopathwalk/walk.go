@@ -51,7 +51,8 @@ type Root struct {
 // paths of the containing source directory and the package directory.
 // add will be called concurrently.
 func Walk(roots []Root, add func(root Root, dir string), opts Options) {
-	WalkSkip(roots, add, func(Root, string) bool { return false }, opts)
+	// WalkSkip(roots, add, func(Root, string) bool { return false }, opts)
+	WalkSkip(roots, add, nil, opts)
 }
 
 // WalkSkip walks Go source directories ($GOROOT, $GOPATH, etc) to find packages.
@@ -161,9 +162,16 @@ func (w *walker) getIgnoredDirs(path string) []string {
 
 // shouldSkipDir reports whether the file should be skipped or not.
 func (w *walker) shouldSkipDir(fi os.FileInfo, dir string) bool {
-	for _, ignoredDir := range w.ignoredDirs {
-		if os.SameFile(fi, ignoredDir) {
-			return true
+	if len(w.ignoredDirs) != 0 {
+		if fi == nil {
+			if fi, _ = os.Lstat(dir); fi == nil {
+				return true
+			}
+		}
+		for _, ignoredDir := range w.ignoredDirs {
+			if os.SameFile(fi, ignoredDir) {
+				return true
+			}
 		}
 	}
 	if w.skip != nil {
@@ -197,8 +205,7 @@ func (w *walker) walk(path string, typ os.FileMode) error {
 			(!w.opts.ModulesEnabled && base == "node_modules") {
 			return filepath.SkipDir
 		}
-		fi, err := os.Lstat(path)
-		if err == nil && w.shouldSkipDir(fi, path) {
+		if w.shouldSkipDir(nil, path) {
 			return filepath.SkipDir
 		}
 		return nil
